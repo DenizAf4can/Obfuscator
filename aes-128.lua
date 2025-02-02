@@ -1,4 +1,6 @@
 local function _W(f) local e=setmetatable({}, {__index = _ENV or getfenv()}) if setfenv then setfenv(f, e) end return f(e) or e end
+
+local aesfunctions = {}
 local bit = {}
 function bit.bnot(x)
     return (-1 - x) % 4294967296 -- 32-bit sınırlaması
@@ -26,6 +28,8 @@ function bit.bor(x, y)
     return result
 end
 function bit.bxor(x, y)
+    assert(x ~= nil, "x is nil in bxor")
+    assert(y ~= nil, "y is nil in bxor")
     local result = 0
     for i = 0, 31 do
         if (x % 2 ~= y % 2) then
@@ -998,7 +1002,6 @@ function public.encryptString(key, data, modeFunction, iv)
 
 	return buffer.toString(encryptedData)
 end
-
 --
 -- the following 4 functions can be used as
 -- modefunction for encryptString
@@ -1194,8 +1197,42 @@ function encrypt(password, data, keyLength, mode, iv)
 	end
 end
 
+function aesfunctions.encrypt(password, data, keyLength, mode, iv)
+	assert(password ~= nil, "Empty password.")
+	assert(password ~= nil, "Empty data.")
+
+	local mode = mode or CBCMODE
+	local keyLength = keyLength or AES128
+
+	local key = pwToKey(password, keyLength, iv)
+
+	local paddedData = util.padByteString(data)
+
+	if mode == ECBMODE then
+		return ciphermode.encryptString(key, paddedData, ciphermode.encryptECB, iv)
+	elseif mode == CBCMODE then
+		return ciphermode.encryptString(key, paddedData, ciphermode.encryptCBC, iv)
+	elseif mode == OFBMODE then
+		return ciphermode.encryptString(key, paddedData, ciphermode.encryptOFB, iv)
+	elseif mode == CFBMODE then
+		return ciphermode.encryptString(key, paddedData, ciphermode.encryptCFB, iv)
+	elseif mode == CTRMODE then
+		return ciphermode.encryptString(key, paddedData, ciphermode.encryptCTR, iv)
+	else
+		error("Unknown mode", 2)
+	end
+end
 
 
+aesfunctions.AES128 = 16 -- 128-bit anahtar uzunluğu (16 byte)
+aesfunctions.AES192 = 24 -- 192-bit anahtar uzunluğu (24 byte)
+aesfunctions.AES256 = 32 -- 256-bit anahtar uzunluğu (32 byte)
+
+aesfunctions.ECBMODE = 1
+aesfunctions.CBCMODE = 2
+aesfunctions.OFBMODE = 3
+aesfunctions.CFBMODE = 4
+aesfunctions.CTRMODE = 5
 
 --
 -- Decrypts string data with password password.
@@ -1235,3 +1272,5 @@ function decrypt(password, data, keyLength, mode, iv)
 
 	return result
 end
+
+return aesfunctions
